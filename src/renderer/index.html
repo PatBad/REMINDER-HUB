@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'"
+    />
+    <title>Reminder Hub</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="is-collapsed">
+    <!-- Collapsed: just the logo bubble -->
+    <button id="bubble" class="bubble" type="button" aria-label="Open Reminder Hub">
+      <img src="../../assets/logo.svg" alt="" draggable="false" />
+      <span id="badge" class="badge" hidden></span>
+    </button>
+
+    <!-- Expanded: the reminder list -->
+    <section id="panel" class="panel" aria-label="Reminder Hub">
+      <header class="topbar">
+        <img class="topbar-logo" src="../../assets/logo.svg" alt="" draggable="false" />
+        <div class="topbar-title" title="Drag to move">
+          <h1>Reminder Hub</h1>
+          <p class="topbar-sub">
+            <span id="open-count" class="open-count"></span>
+            <span id="sync-pill" class="sync-pill"><span class="sync-dot"></span><span id="sync-text"></span></span>
+          </p>
+        </div>
+        <button id="toggle-search" class="icon-btn" type="button" title="Search (Ctrl+F)" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+        </button>
+        <button id="open-settings" class="icon-btn" type="button" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.54V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.54-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.54V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.54 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.54 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg>
+        </button>
+        <button id="collapse" class="icon-btn" type="button" title="Minimise to icon (Esc)" aria-label="Minimise to icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+        </button>
+      </header>
+
+      <!-- Urgency tabs (filled in by app.js) -->
+      <nav id="tabs" class="tabs" role="tablist" aria-label="Urgency" hidden></nav>
+
+      <!-- First run: set up syncing -->
+      <div id="screen-welcome" class="screen welcome" hidden>
+        <img class="welcome-logo" src="../../assets/logo.svg" alt="" draggable="false" />
+        <h2>Welcome to Reminder Hub</h2>
+        <p>Keep the same reminders on this PC and your other PC by syncing them through a private gist on your GitHub account.</p>
+        <div id="welcome-sync" class="sync-setup"></div>
+        <button id="welcome-skip" class="link-btn welcome-skip" type="button">Skip for now and use it on this PC only</button>
+      </div>
+
+      <!-- The reminder list -->
+      <div id="screen-list" class="screen list-screen" hidden>
+        <div id="search-row" class="search-row" hidden>
+          <input id="search" type="search" placeholder="Search all reminders" aria-label="Search all reminders" spellcheck="false" />
+        </div>
+
+        <div id="update-banner" class="banner" hidden>
+          <span id="update-banner-text"></span>
+          <button id="update-banner-btn" type="button" class="link-btn">Restart now</button>
+        </div>
+
+        <div class="list-head">
+          <span id="list-hint" class="list-hint"></span>
+          <button id="clear-done" class="link-btn small-link" type="button" hidden>Clear all done</button>
+        </div>
+
+        <div class="list-wrap">
+          <div id="list" class="list" tabindex="-1" aria-live="polite"></div>
+        </div>
+
+        <form id="compose" class="compose" autocomplete="off">
+          <div id="level-pick" class="level-pick" role="radiogroup" aria-label="Urgency"></div>
+          <div class="compose-row">
+            <textarea id="text" rows="1" maxlength="2000" placeholder="Remind me to…" aria-label="Reminder"></textarea>
+            <button id="add" class="send" type="submit" disabled aria-label="Add reminder" title="Add reminder (Enter)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            </button>
+          </div>
+          <div class="due-row">
+            <label class="due-toggle">
+              <input id="due-on" type="checkbox" />
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M5 3 2 6M19 3l3 3"/></svg>
+              Due
+            </label>
+            <input id="due" class="due-input" type="datetime-local" aria-label="Due date and time" hidden />
+          </div>
+          <p id="compose-error" class="compose-error" role="alert" hidden></p>
+        </form>
+      </div>
+
+      <!-- Settings -->
+      <div id="screen-settings" class="screen settings" hidden>
+        <div class="settings-head">
+          <button id="close-settings" class="icon-btn" type="button" aria-label="Back to reminders">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m11 18-6-6 6-6"/></svg>
+          </button>
+          <h2>Settings</h2>
+        </div>
+        <div class="settings-body">
+          <section>
+            <h3>Sync between PCs</h3>
+            <div id="settings-sync" class="sync-setup"></div>
+          </section>
+          <section>
+            <h3>Alerts</h3>
+            <label class="switch-row">
+              <span>Chime when a reminder falls due</span>
+              <input id="opt-sound" type="checkbox" role="switch" />
+            </label>
+            <label class="switch-row">
+              <span>Start Reminder Hub with Windows</span>
+              <input id="opt-autostart" type="checkbox" role="switch" />
+            </label>
+          </section>
+          <section>
+            <h3>About</h3>
+            <p class="about-line">Version <span id="version"></span> · <span id="host"></span></p>
+            <p class="about-line"><span id="update-text"></span> <button id="update-btn" type="button" class="link-btn"></button></p>
+            <p class="about-line"><button id="open-data" type="button" class="link-btn">Open data folder</button></p>
+          </section>
+        </div>
+      </div>
+
+      <div id="toast" class="toast" role="status" hidden>
+        <span id="toast-text"></span>
+        <button id="toast-action" class="toast-action" type="button" hidden></button>
+      </div>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

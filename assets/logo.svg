@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="128" fill="url(#bg)"/>
+  <!-- ringing lines -->
+  <g fill="none" stroke="#bfdbfe" stroke-width="10" stroke-linecap="round">
+    <path d="M58 84a84 84 0 0 0-14 44"/>
+    <path d="M198 84a84 84 0 0 1 14 44"/>
+  </g>
+  <!-- bell -->
+  <path d="M128 46c-7 0-12 5-12 12v5c-26 6-44 29-44 57v30l-13 17c-3 5 0 11 6 11h126c6 0 9-6 6-11l-13-17v-30c0-28-18-51-44-57v-5c0-7-5-12-12-12z" fill="#fff"/>
+  <path d="M106 186a22 22 0 0 0 44 0z" fill="#fff"/>
+  <!-- tick -->
+  <path d="M104 128l17 17 33-35" fill="none" stroke="#1d4ed8" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

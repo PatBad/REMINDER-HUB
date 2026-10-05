@@ -1,0 +1,68 @@
+{
+  "name": "reminder-hub",
+  "productName": "Reminder Hub",
+  "version": "1.0.0",
+  "description": "Always-on-top personal reminder list, sorted by urgency and synced between PCs.",
+  "main": "src/main/main.js",
+  "author": "PatBad",
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PatBad/REMINDER-HUB.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "icons": "electron scripts/make-icons.js",
+    "dist": "electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.patbad.reminderhub",
+    "productName": "Reminder Hub",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Reminder-Hub-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Reminder Hub"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "PatBad",
+        "repo": "REMINDER-HUB",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+name: Release
+
+# Push a tag like v1.0.1 (see README "Releasing an update") and this builds the
+# Windows installer and publishes it as a GitHub Release. Every installed copy
+# of Reminder Hub checks the Releases page and updates itself.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
+
+      # Build logs need a GitHub login to read, but annotations are public,
+      # so surface the failing tests there.
+      - name: Report failing tests
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "not ok|âœ–|AssertionError|[Ee]rror:|expected:|actual:|Timed out|location:" test-output.txt | head -40 |
+            while IFS= read -r line; do echo "::error title=Test failure::${line}"; done
+
+      - name: Check tag matches package.json version
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Build installer
+        run: npx electron-builder --win --publish never
+
+      # Publish with gh rather than electron-builder: electron-builder uploads
+      # files in parallel and can end up creating two releases for one tag.
+      # gh creates a single release, uploads everything, then makes it public.
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/Reminder-Hub-Setup-*.exe \
+            dist/Reminder-Hub-Setup-*.exe.blockmap \
+            dist/latest.yml \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME#v}" \
+            --notes "Reminder Hub ${GITHUB_REF_NAME#v}"
