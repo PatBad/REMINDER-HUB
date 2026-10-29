@@ -221,6 +221,13 @@ async function setExpanded(expanded) {
   }
 }
 
+/** Draws the bell half-hidden by the screen edge it is docked to (side is 'left', 'right' or null when floating). */
+function applyDock(side) {
+  el.body.classList.toggle('dock-left', side === 'left');
+  el.body.classList.toggle('dock-right', side === 'right');
+  if (!side) el.bubble.classList.remove('will-dock');
+}
+
 function applyView({ expanded, origin }) {
   const opening = expanded && !state.expanded;
   state.expanded = expanded;
@@ -1008,6 +1015,8 @@ document.addEventListener('keydown', (e) => {
 // ---------- Live updates from the main process ----------
 
 hub.onView(applyView);
+hub.onDock(applyDock);
+hub.onDockHint((near) => el.bubble.classList.toggle('will-dock', Boolean(near)));
 
 // Something changed (here, on the other PC via sync, or a reminder fell due).
 hub.onRemindersChanged(({ alert }) => {
@@ -1070,6 +1079,7 @@ async function init() {
   renderUpdate();
   state.reminders = await hub.list();
   showScreen(s.settings.welcomed ? 'list' : 'welcome');
+  applyDock(s.dock);
   applyView({ expanded: s.expanded });
 }
 

@@ -10,6 +10,7 @@ const { ReminderStore } = require('./store');
 const { GistSync } = require('./sync');
 const { Updater } = require('./updater');
 const { createLogger } = require('./logger');
+const { clamp, makeDock, dockSnap, matchDockArea } = require('./geometry');
 
 // Developer override so a test copy can run beside the installed one.
 // See README "Running a test copy".
@@ -23,6 +24,14 @@ const PULSE_PAD = 22;
 const PANEL_WIDTH = 400;
 const PANEL_HEIGHT = 640;
 const EDGE = 12;
+// Docked, the bell's centre sits on the screen edge, so half of it shows. The window
+// is just that half plus room for the pulse; the rest of the bell would be off-screen.
+const DOCK_WIDTH = ICON_SIZE / 2 + PULSE_PAD;
+// Dropping the bell this close to a left or right edge docks it.
+const DOCK_SNAP = 30;
+// Pulling a docked bell this far away from its edge undocks it. (More than the bell's half-width
+// plus DOCK_SNAP, so letting go straight after it comes free leaves it free rather than docking it again.)
+const DOCK_DETACH = 80;
 const ASSETS = path.join(__dirname, '..', '..', 'assets');
 const HOST = os.hostname().slice(0, 40);
 const TOKEN_PAGE = 'https://github.com/settings/tokens/new?scopes=gist&description=Reminder%20Hub';
@@ -35,7 +44,10 @@ let sync;
 let updater = null;
 let log;
 let expanded = false;
-let iconPos = null;
+let iconPos = null; // the free-floating bell's box; kept while docked, for when it is pulled out
+let dock = null; // { side, edge, y } while the bell is docked to a screen edge, else null
+let dragStart = null; // the bell as it was when the current drag of it began
+let dockHint = false; // the bell being dragged is close enough to an edge to dock
 let panelRect = null;
 let quitting = false;
 let dueCheckedUntil = Date.now(); // reminders due before this have already chimed
@@ -116,6 +128,7 @@ app.on('before-quit', () => {
 
 function createWindow() {
   iconPos = validIconPosition(config.get('iconPosition')) || defaultIconPosition();
+  dock = initialDock();
   win = new BrowserWindow({
     ...collapsedBounds(),
     frame: false,
@@ -171,6 +184,7 @@ function setExpanded(value) {
     win.show();
     win.focus();
   } else {
+    sendDock();
     win.setBounds(collapsedBounds());
     setClickThrough(true);
     if (!win.isVisible()) win.showInactive();
@@ -182,20 +196,34 @@ function setExpanded(value) {
 
 /** Opens the panel out of the bubble, towards the middle of the screen. */
 function panelBounds() {
-  const wa = screen.getDisplayMatching({ ...iconPos, width: ICON_SIZE, height: ICON_SIZE }).workArea;
+  const icon = logoBox();
+  const wa = screen.getDisplayMatching({ ...icon, width: ICON_SIZE, height: ICON_SIZE }).workArea;
   const width = Math.min(PANEL_WIDTH, wa.width - EDGE * 2);
   const height = Math.min(PANEL_HEIGHT, wa.height - EDGE * 2);
-  const right = iconPos.x + ICON_SIZE / 2 > wa.x + wa.width / 2;
-  const bottom = iconPos.y + ICON_SIZE / 2 > wa.y + wa.height / 2;
-  const x = clamp(right ? iconPos.x + ICON_SIZE - width : iconPos.x, wa.x, wa.x + wa.width - width);
-  const y = clamp(bottom ? iconPos.y + ICON_SIZE - height : iconPos.y, wa.y, wa.y + wa.height - height);
+  const right = icon.x + ICON_SIZE / 2 > wa.x + wa.width / 2;
+  const bottom = icon.y + ICON_SIZE / 2 > wa.y + wa.height / 2;
+  const x = clamp(right ? icon.x + ICON_SIZE - width : icon.x, wa.x, wa.x + wa.width - width);
+  const y = clamp(bottom ? icon.y + ICON_SIZE - height : icon.y, wa.y, wa.y + wa.height - height);
   return {
     rect: { x: Math.round(x), y: Math.round(y), width, height },
     origin: `${bottom ? 'bottom' : 'top'} ${right ? 'right' : 'left'}`,
   };
 }
 
+/** The bell's box as if it were all showing: where it floats, or centred on the edge it is docked to. */
+function logoBox() {
+  return dock ? { x: dock.edge - ICON_SIZE / 2, y: dock.y } : iconPos;
+}
+
 function collapsedBounds() {
+  if (dock) {
+    return {
+      x: dock.side === 'left' ? dock.edge : dock.edge - DOCK_WIDTH,
+      y: dock.y - PULSE_PAD,
+      width: DOCK_WIDTH,
+      height: ICON_SIZE + PULSE_PAD * 2,
+    };
+  }
   return {
     x: iconPos.x - PULSE_PAD,
     y: iconPos.y - PULSE_PAD,
@@ -256,19 +284,58 @@ function validIconPosition(pos) {
   };
 }
 
+/** A dock on the right of the main screen, at mid-height: where a new install starts. */
+function defaultDock() {
+  const wa = screen.getPrimaryDisplay().workArea;
+  return makeDock('right', wa, wa.y + Math.round(wa.height * 0.5), ICON_SIZE);
+}
+
+/** The dock on whichever side of its screen the box at `pos` is nearer, at the same height. */
+function dockFromBox(pos) {
+  const wa = screen.getDisplayMatching({ ...pos, width: ICON_SIZE, height: ICON_SIZE }).workArea;
+  const left = pos.x + ICON_SIZE / 2 < wa.x + wa.width / 2;
+  return makeDock(left ? 'left' : 'right', wa, pos.y, ICON_SIZE);
+}
+
+/** The saved dock re-fitted to the screens as they are now, or null if it fits none. */
+function validDock(saved) {
+  const areas = screen.getAllDisplays().map((d) => d.workArea);
+  const area = matchDockArea(saved, ICON_SIZE, areas);
+  return area ? makeDock(saved.side, area, saved.y, ICON_SIZE) : null;
+}
+
+/**
+ * How the bell starts. Docked unless it was pulled out of its dock on this PC.
+ * A PC from before docking existed docks on the side its bell was nearest.
+ */
+function initialDock() {
+  const saved = config.get('dock');
+  if (saved === false) return null;
+  let found = validDock(saved);
+  if (!found) found = validIconPosition(config.get('iconPosition')) ? dockFromBox(iconPos) : defaultDock();
+  config.set({ dock: found });
+  return found;
+}
+
+/** Tells the page which edge it is docked to (null if free) so it can draw the half-hidden bell. */
+function sendDock() {
+  send('dock', dock ? dock.side : null);
+}
+
 function keepOnScreen() {
   iconPos = validIconPosition(iconPos) || defaultIconPosition();
+  if (dock) {
+    dock = validDock(dock) || defaultDock();
+    config.set({ dock });
+  }
   setExpanded(expanded);
 }
 
 function resetIconPosition() {
+  dock = defaultDock();
   iconPos = defaultIconPosition();
-  config.set({ iconPosition: iconPos });
+  config.set({ dock, iconPosition: iconPos });
   setExpanded(false);
-}
-
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
 }
 
 function send(channel, payload) {
@@ -313,7 +380,7 @@ function refreshTray() {
         },
       },
       { label: 'Sync now', enabled: sync.status.state !== 'off', click: () => sync.sync() },
-      { label: 'Move icon back to the corner', click: resetIconPosition },
+      { label: 'Put the bell back on the side of the screen', click: resetIconPosition },
       { type: 'separator' },
       update.state === 'ready'
         ? { label: `Restart to update to ${update.version}`, click: () => updater.installNow() }
@@ -432,6 +499,7 @@ ipcMain.handle('get-state', () => ({
   levels: LEVELS,
   settings: publicSettings(),
   expanded,
+  dock: dock ? dock.side : null,
   summary: summary(),
   sync: sync.status,
   update: updater ? updater.status : { state: 'dev' },
@@ -506,24 +574,70 @@ ipcMain.on('drag-move', (_e, pos) => {
   // setBounds (not setPosition) so the size can't drift across mixed-DPI screens.
   if (expanded) {
     win.setBounds({ x, y, width: panelRect.width, height: panelRect.height });
-  } else {
-    iconPos = { x: x + PULSE_PAD, y: y + PULSE_PAD };
-    win.setBounds(collapsedBounds());
+    return;
   }
+  // `pos` is where the window began plus how far the pointer has moved, whatever shape
+  // the window has now, so work from the movement. (The window changes shape when the bell is pulled out.)
+  const { x: x0, y: y0 } = win.getBounds();
+  if (!dragStart) dragStart = { box: { ...logoBox() }, from: { x: x0, y: y0 } };
+  const dx = x - dragStart.from.x;
+  const dy = y - dragStart.from.y;
+  if (dock) {
+    // Docked: up and down moves it along the edge; pulling it away from the edge frees it.
+    const pulled = dock.side === 'left' ? dx : -dx;
+    if (pulled <= DOCK_DETACH) {
+      const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+      dock = makeDock(dock.side, wa, dragStart.box.y + dy, ICON_SIZE);
+      win.setBounds(collapsedBounds());
+      return;
+    }
+    dock = null;
+    sendDock();
+  }
+  iconPos = { x: dragStart.box.x + dx, y: dragStart.box.y + dy };
+  win.setBounds(collapsedBounds());
+  setDockHint(Boolean(snapSideFor(iconPos)));
 });
+
+/** Which side the free bell at `box` would dock to if dropped now, or null. */
+function snapSideFor(box) {
+  const wa = screen.getDisplayMatching({ ...box, width: ICON_SIZE, height: ICON_SIZE }).workArea;
+  return dockSnap(box, ICON_SIZE, wa, DOCK_SNAP);
+}
+
+/** Lets the page glow the bell while it is close enough to an edge to dock. */
+function setDockHint(on) {
+  if (on === dockHint) return;
+  dockHint = on;
+  send('dock-hint', on);
+}
 
 ipcMain.on('drag-end', () => {
   if (!win) return;
-  if (expanded) {
+  if (expanded && dock) {
+    // The list can go anywhere; closing it sends the bell back to its dock.
+    panelRect = clampToWorkArea(win.getBounds());
+    win.setBounds(panelRect);
+  } else if (expanded) {
     // The bubble follows the panel, so it collapses and reopens in the same place.
     iconPos = validIconPosition(iconForPanel(clampToWorkArea(win.getBounds()))) || defaultIconPosition();
     panelRect = panelBounds().rect;
     win.setBounds(panelRect);
+    config.set({ iconPosition: iconPos });
   } else {
+    dragStart = null;
+    setDockHint(false);
+    const side = dock ? null : snapSideFor(iconPos);
+    if (side) {
+      // Dropped by an edge: it docks there, level with where it was dropped.
+      const wa = screen.getDisplayMatching({ ...iconPos, width: ICON_SIZE, height: ICON_SIZE }).workArea;
+      dock = makeDock(side, wa, iconPos.y, ICON_SIZE);
+    }
     iconPos = validIconPosition(iconPos) || defaultIconPosition();
+    sendDock();
     win.setBounds(collapsedBounds());
+    config.set({ dock: dock || false, iconPosition: iconPos });
   }
-  config.set({ iconPosition: iconPos });
 });
 
 ipcMain.on('click-through', (_e, on) => setClickThrough(!!on));

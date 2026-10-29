@@ -2,7 +2,7 @@
 
 A personal reminder list that floats on top of every window, sorted into tabs by urgency, and kept the same on more than one PC.
 
-- **Collapsed**, it's the blue bell floating at the edge of the screen. The red badge counts reminders that need attention (everything in **Urgent**, plus anything overdue). Blue rings pulse when a reminder falls due.
+- **Collapsed**, it's the blue bell, half tucked into the left or right edge of the screen so it stays out of the way (or floating free, if you've pulled it out). The red badge counts reminders that need attention (everything in **Urgent**, plus anything overdue). Blue rings pulse when a reminder falls due.
 - **Expanded**, it's your list, in five tabs: **Urgent**, **Soon**, **Later**, **Someday** and **Done**.
 
 ## Using it
@@ -10,8 +10,10 @@ A personal reminder list that floats on top of every window, sorted into tabs by
 | To… | Do this |
 | --- | --- |
 | Open the list | Click the bell |
-| Move the bell | Drag it anywhere on screen (it remembers where) |
-| Move the open list | Drag it by its top bar; the bell moves with it to the nearest corner |
+| Move the bell up or down the screen edge | Drag it up or down. It stays docked and remembers the height |
+| Pull the bell off the edge | Drag it well away from the edge (about 80 px). It then floats wherever you drop it, and remembers where |
+| Dock the bell again | Drop it within about 30 px of the left or right edge (it glows while you're close enough), or right-click the tray icon and choose **Put the bell back on the side of the screen** |
+| Move the open list | Drag it by its top bar. If the bell is docked it goes back to its dock when you close the list; a floating bell moves with the list to the nearest corner |
 | Minimise back to the bell | Click **—** or press **Esc** |
 | Add a reminder | Pick its urgency above the box (it starts on the tab you're in), type, press **Enter** (**Shift+Enter** for a new line). Tick **Due** to set a time: it chimes and the bell pulses when that time comes |
 | Mark one done | Click the circle on its left. It moves to **Done**; click the circle again to bring it back |
@@ -115,4 +117,4 @@ test/                  node:test suites
 - **Data**: `%APPDATA%\Reminder Hub\reminders.json` (Settings → Open data folder). If that file is ever unreadable, it's copied aside as `reminders.json.corrupt-…` and, with sync on, the list comes back from the gist.
 - **Logs**: `%APPDATA%\Reminder Hub\logs\reminder-hub.log`
 - **"Sync problem"**: Settings shows the reason. If GitHub stopped accepting the token (expired or deleted), paste a new one there.
-- **Bell disappeared off-screen** (e.g. after unplugging a monitor): right-click the tray icon → **Move icon back to the corner**.
+- **Bell disappeared off-screen** (e.g. after unplugging a monitor): right-click the tray icon → **Put the bell back on the side of the screen**.
