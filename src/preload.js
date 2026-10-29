@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('hub', {
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
 
   onView: on('view'),
+  onDock: on('dock'),
+  onDockHint: on('dock-hint'),
   onRemindersChanged: on('reminders-changed'),
   onSummary: on('summary'),
   onSync: on('sync-status'),

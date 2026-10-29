@@ -201,6 +201,34 @@ body.is-switching .panel {
   60% { transform: scale(0.96); }
 }
 
+/* Docked to a screen edge: the window is only the on-screen half of the 120px box
+   (see DOCK_WIDTH in main.js), so the bubble's centre is on the window's outer edge
+   and the rest is clipped. Right is the layout above; left shifts the bubble out. */
+body.dock-left .bubble {
+  left: -30px;
+}
+
+body.dock-right .badge {
+  left: -3px;
+  right: auto;
+}
+
+/* Pointing at it, or sliding it, pulls the tab out a little to be easier to grab. */
+body.dock-left .bubble:hover,
+body.dock-left .bubble.is-dragging {
+  transform: translateX(10px) scale(1.06);
+}
+
+body.dock-right .bubble:hover,
+body.dock-right .bubble.is-dragging {
+  transform: translateX(-10px) scale(1.06);
+}
+
+/* While it's being dragged close enough to a screen edge to dock there. */
+.bubble.will-dock {
+  box-shadow: 0 0 0 4px var(--primary), 0 4px 14px rgba(10, 25, 60, 0.38);
+}
+
 body.is-expanded .bubble,
 body.is-collapsed .panel {
   display: none;

@@ -6,7 +6,8 @@ const path = require('path');
 const DEFAULTS = {
   sound: true,
   autoStart: true,
-  iconPosition: null,
+  iconPosition: null, // where the bell floats when it isn't docked
+  dock: null, // { side, edge, y } while the bell is docked to a screen edge; false once pulled out; null means not chosen yet
   // Set once the welcome / sync setup screen has been dealt with.
   welcomed: false,
   // The urgency last used for a new reminder.
