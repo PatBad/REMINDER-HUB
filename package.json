@@ -1,7 +1,7 @@
 {
   "name": "reminder-hub",
   "productName": "Reminder Hub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Always-on-top personal reminder list, sorted by urgency and synced between PCs.",
   "main": "src/main/main.js",
   "author": "PatBad",
